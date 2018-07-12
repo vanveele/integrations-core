@@ -1,15 +1,11 @@
-# (C) Datadog, Inc. 2015-2017
-# (C) Cory G Watson <gphat@keen.io> 2014-2015
+# (C) Datadog, Inc. 2018
 # All rights reserved
-# Licensed under Simplified BSD License (see LICENSE)
-
-# 3rd party
+# Licensed under a 3-clause BSD style license (see LICENSE)
 import requests
 
-# project
-from checks import AgentCheck
-from config import _is_affirmative
-from util import headers
+from datadog_checks.checks import AgentCheck
+from datadog_checks.config import is_affirmative
+from datadog_checks.utils.headers import headers
 
 
 class Etcd(AgentCheck):
@@ -84,7 +80,7 @@ class Etcd(AgentCheck):
         ssl_params = {
             'ssl_keyfile': instance.get('ssl_keyfile'),
             'ssl_certfile': instance.get('ssl_certfile'),
-            'ssl_cert_validation': _is_affirmative(instance.get('ssl_cert_validation', True)),
+            'ssl_cert_validation': is_affirmative(instance.get('ssl_cert_validation', True)),
             'ssl_ca_certs': instance.get('ssl_ca_certs'),
         }
 
@@ -208,7 +204,7 @@ class Etcd(AgentCheck):
             raise
         except Exception as e:
             self.service_check(self.SERVICE_CHECK_NAME, AgentCheck.CRITICAL,
-                               message="Error hitting %s. Error: %s" % (url, e.message),
+                               message="Error hitting %s. Error: %s" % (url, str(e)),
                                tags=tags + ["url:{0}".format(url)])
             raise
 

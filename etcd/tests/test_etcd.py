@@ -1,11 +1,6 @@
-# (C) Datadog, Inc. 2010-2017
+# (C) Datadog, Inc. 2018
 # All rights reserved
-# Licensed under Simplified BSD License (see LICENSE)
-
-# 3p
-from nose.plugins.attrib import attr
-
-# project
+# Licensed under a 3-clause BSD style license (see LICENSE)
 from tests.checks.common import AgentCheckTest
 
 
