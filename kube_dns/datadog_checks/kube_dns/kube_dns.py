@@ -2,6 +2,8 @@
 # All rights reserved
 # Licensed under a 3-clause BSD style license (see LICENSE)
 
+from copy import deepcopy
+
 from datadog_checks.errors import CheckException
 from datadog_checks.checks.prometheus import PrometheusCheck
 
@@ -13,35 +15,35 @@ class KubeDNSCheck(PrometheusCheck):
     Collect kube-dns metrics from Prometheus
     """
     def __init__(self, name, init_config, agentConfig, instances=None):
-        super(KubeDNSCheck, self).__init__(name, init_config, agentConfig, instances)
-        self.NAMESPACE = 'kubedns'
-
-        self.metrics_mapper = {
-            # metrics have been renamed to kubedns in kubernetes 1.6.0
-            'kubedns_kubedns_dns_response_size_bytes': 'response_size.bytes',
-            'kubedns_kubedns_dns_request_duration_seconds': 'request_duration.seconds',
-            # metrics names for kubernetes < 1.6.0
-            'skydns_skydns_dns_response_size_bytes': 'response_size.bytes',
-            'skydns_skydns_dns_request_duration_seconds': 'request_duration.seconds',
-            # Note: the count metrics were moved to specific functions below to be submitted as both gauges and monotonic_counts
-        }
-
+        generic_instances = create_generic_instances(self, instances)
+        super(KubeDNSCheck, self).__init__(name, init_config, agentConfig, instances=generic_instances)
 
     def check(self, instance):
         endpoint = instance.get('prometheus_endpoint')
         if endpoint is None:
             raise CheckException("Unable to find prometheus_endpoint in config file.")
 
-        self.set_prometheus_timeout(instance)
+        self.process(instance, config)
 
-        send_buckets = instance.get('send_histograms_buckets', True)
-        # By default we send the buckets.
-        if send_buckets is not None and str(send_buckets).lower() == 'false':
-            send_buckets = False
-        else:
-            send_buckets = True
+    def _create_kube_dns_instance(self, instance):
+        """
+        """
 
-        self.process(endpoint, send_histograms_buckets=send_buckets, instance=instance)
+        kube_dns_instance = deepcopy(instance)
+        kube_dns_instance.update({
+            'namespace': 'kubedns',
+            'metrics': [{
+                # metrics have been renamed to kubedns in kubernetes 1.6.0
+                'kubedns_kubedns_dns_response_size_bytes': 'response_size.bytes',
+                'kubedns_kubedns_dns_request_duration_seconds': 'request_duration.seconds',
+                # metrics names for kubernetes < 1.6.0
+                'skydns_skydns_dns_response_size_bytes': 'response_size.bytes',
+                'skydns_skydns_dns_request_duration_seconds': 'request_duration.seconds',
+                # Note: the count metrics were moved to specific functions below to be submitted as both gauges and monotonic_counts
+            }]
+        })
+
+        return kube_dns_instance
 
     def submit_as_gauge_and_monotonic_count(self, metric_suffix, message, **kwargs):
         """

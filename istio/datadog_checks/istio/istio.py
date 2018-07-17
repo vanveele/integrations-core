@@ -3,6 +3,7 @@
 # Licensed under Simplified BSD License (see LICENSE)
 
 from copy import deepcopy
+
 from datadog_checks.checks.prometheus import GenericPrometheusCheck
 
 
@@ -11,13 +12,8 @@ class Istio(GenericPrometheusCheck):
     MESH_NAMESPACE = 'istio.mesh'
 
     def __init__(self, name, init_config, agentConfig, instances=None):
-        # Generalize each single Istio instance into two GenericPrometheus instances
-        generic_instances = []
-        for instance in instances:
-            istio_mesh_instance = self._create_istio_mesh_instance(instance)
-            process_mixer_instance = self._create_process_mixer_instance(instance)
-
-            generic_instances.extend([istio_mesh_instance, process_mixer_instance])
+        # Create instances we can use in GenericPrometheusCheck
+        generic_instances = self.create_generic_instances(instances)
 
         # Set up GenericPrometheusCheck with our generic instances
         super(Istio, self).__init__(name, init_config, agentConfig, generic_instances)
@@ -32,8 +28,8 @@ class Istio(GenericPrometheusCheck):
         # Get the config for the istio_mesh instance
         istio_mesh_config = self.config_map.get(istio_mesh_endpoint)
         if istio_mesh_config is None:
-            istio_mesh_config = self._create_istio_mesh_instance(instance)
-            self.config_map[istio_mesh_endpoint] = istio_mesh_config
+            istio_mesh_instance = self._create_istio_mesh_instance(instance)
+            istio_mesh_config = self.get_scraper_config(istio_mesh_instance)
 
         # Process istio_mesh
         self.process(istio_mesh_config)
@@ -41,11 +37,25 @@ class Istio(GenericPrometheusCheck):
         # Get the config for the process_mixer instance
         process_mixer_config = self.config_map.get(process_mixer_endpoint)
         if process_mixer_config is None:
-            process_mixer_config = self._create_process_mixer_instance(instance)
-            self.config_map[process_mixer_endpoint] = process_mixer_config
+            process_mixer_instance = self._create_process_mixer_instance(instance)
+            process_mixer_config = self.get_scraper_config(process_mixer_instance)
 
         # Process process_mixer
         self.process(process_mixer_config)
+
+    def create_generic_instances(self, instances):
+        """
+        Generalize each (single) Istio instance into two GenericPrometheusCheck instances
+        """
+        generic_instances = []
+
+        for instance in instances:
+            istio_mesh_instance = self._create_istio_mesh_instance(instance)
+            process_mixer_instance = self._create_process_mixer_instance(instance)
+
+            generic_instances.extend([istio_mesh_instance, process_mixer_instance])
+
+        return generic_instances
 
     def _create_istio_mesh_instance(self, instance):
         """

@@ -45,17 +45,19 @@ class GenericPrometheusCheck(PrometheusScraperMixin, AgentCheck):
         if endpoint is None:
             raise CheckException("Unable to find prometheus URL in config file.")
 
-        # If we already created the corresponding scraper configuration, return it
+        # If we've already created the corresponding scraper configuration, return it
         if endpoint in self.config_map:
             return self.config_map[endpoint]
 
-        # Otherwise we create the scraper configuration
+        # Otherwise, we create the scraper configuration
         config = self.create_mixin_configuration(instance)
 
         if not config['metrics_mapper']:
             raise CheckException("You have to collect at least one metric from the endpoint: {}".format(endpoint))
 
+        # Add this configuration to the config_map
         self.config_map[endpoint] = config
+
         return config
 
     def _finalize_tags_to_submit(self, _tags, metric_name, val, metric, custom_tags=None, hostname=None):
