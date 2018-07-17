@@ -8,75 +8,80 @@ import os
 
 # 3rd-party
 import pytest
+from requests.exceptions import HTTPError
 
 # project
 from datadog_checks.istio import Istio
 
 
-MESH_METRICS = ['istio.mesh.request.count',
-                'istio.mesh.request.duration.count',
-                'istio.mesh.request.duration.sum',
-                'istio.mesh.request.size.count',
-                'istio.mesh.request.size.sum',
-                'istio.mesh.response.size.count',
-                'istio.mesh.response.size.sum']
+MESH_METRICS = [
+    'istio.mesh.request.count',
+    'istio.mesh.request.duration.count',
+    'istio.mesh.request.duration.sum',
+    'istio.mesh.request.size.count',
+    'istio.mesh.request.size.sum',
+    'istio.mesh.response.size.count',
+    'istio.mesh.response.size.sum'
+]
 
 
-MIXER_METRICS = ['istio.mixer.adapter.dispatch_duration.count',
-                 'istio.mixer.adapter.dispatch_duration.sum',
-                 'istio.mixer.go.gc_duration_seconds.count',
-                 'istio.mixer.go.gc_duration_seconds.quantile',
-                 'istio.mixer.go.gc_duration_seconds.sum',
-                 'istio.mixer.go.goroutines',
-                 'istio.mixer.go.info',
-                 'istio.mixer.go.memstats.alloc_bytes',
-                 'istio.mixer.go.memstats.alloc_bytes_total',
-                 'istio.mixer.go.memstats.buck_hash_sys_bytes',
-                 'istio.mixer.go.memstats.frees_total',
-                 'istio.mixer.go.memstats.gc_cpu_fraction',
-                 'istio.mixer.go.memstats.gc_sys_bytes',
-                 'istio.mixer.go.memstats.heap_alloc_bytes',
-                 'istio.mixer.go.memstats.heap_idle_bytes',
-                 'istio.mixer.go.memstats.heap_inuse_bytes',
-                 'istio.mixer.go.memstats.heap_objects',
-                 'istio.mixer.go.memstats.heap_released_bytes',
-                 'istio.mixer.go.memstats.heap_sys_bytes',
-                 'istio.mixer.go.memstats.last_gc_time_seconds',
-                 'istio.mixer.go.memstats.lookups_total',
-                 'istio.mixer.go.memstats.mallocs_total',
-                 'istio.mixer.go.memstats.mcache_inuse_bytes',
-                 'istio.mixer.go.memstats.mcache_sys_bytes',
-                 'istio.mixer.go.memstats.mspan_inuse_bytes',
-                 'istio.mixer.go.memstats.mspan_sys_bytes',
-                 'istio.mixer.go.memstats.next_gc_bytes',
-                 'istio.mixer.go.memstats.other_sys_bytes',
-                 'istio.mixer.go.memstats.stack_inuse_bytes',
-                 'istio.mixer.go.memstats.stack_sys_bytes',
-                 'istio.mixer.go.memstats.sys_bytes',
-                 'istio.mixer.go.threads',
-                 'istio.mixer.grpc.server.handled_total',
-                 'istio.mixer.grpc.server.handling_seconds.count',
-                 'istio.mixer.grpc.server.handling_seconds.sum',
-                 'istio.mixer.grpc.server.msg_received_total',
-                 'istio.mixer.grpc.server.msg_sent_total',
-                 'istio.mixer.grpc.server.started_total',
-                 'istio.mixer.adapter.dispatch_count',
-                 'istio.mixer.adapter.old_dispatch_count',
-                 'istio.mixer.adapter.old_dispatch_duration.count',
-                 'istio.mixer.adapter.old_dispatch_duration.sum',
-                 'istio.mixer.config.resolve_actions.count',
-                 'istio.mixer.config.resolve_actions.sum',
-                 'istio.mixer.config.resolve_count',
-                 'istio.mixer.config.resolve_duration.count',
-                 'istio.mixer.config.resolve_duration.sum',
-                 'istio.mixer.config.resolve_rules.count',
-                 'istio.mixer.config.resolve_rules.sum',
-                 'istio.mixer.process.cpu_seconds_total',
-                 'istio.mixer.process.max_fds',
-                 'istio.mixer.process.open_fds',
-                 'istio.mixer.process.resident_memory_bytes',
-                 'istio.mixer.process.start_time_seconds',
-                 'istio.mixer.process.virtual_memory_bytes']
+MIXER_METRICS = [
+    'istio.mixer.adapter.dispatch_duration.count',
+    'istio.mixer.adapter.dispatch_duration.sum',
+    'istio.mixer.go.gc_duration_seconds.count',
+    'istio.mixer.go.gc_duration_seconds.quantile',
+    'istio.mixer.go.gc_duration_seconds.sum',
+    'istio.mixer.go.goroutines',
+    'istio.mixer.go.info',
+    'istio.mixer.go.memstats.alloc_bytes',
+    'istio.mixer.go.memstats.alloc_bytes_total',
+    'istio.mixer.go.memstats.buck_hash_sys_bytes',
+    'istio.mixer.go.memstats.frees_total',
+    'istio.mixer.go.memstats.gc_cpu_fraction',
+    'istio.mixer.go.memstats.gc_sys_bytes',
+    'istio.mixer.go.memstats.heap_alloc_bytes',
+    'istio.mixer.go.memstats.heap_idle_bytes',
+    'istio.mixer.go.memstats.heap_inuse_bytes',
+    'istio.mixer.go.memstats.heap_objects',
+    'istio.mixer.go.memstats.heap_released_bytes',
+    'istio.mixer.go.memstats.heap_sys_bytes',
+    'istio.mixer.go.memstats.last_gc_time_seconds',
+    'istio.mixer.go.memstats.lookups_total',
+    'istio.mixer.go.memstats.mallocs_total',
+    'istio.mixer.go.memstats.mcache_inuse_bytes',
+    'istio.mixer.go.memstats.mcache_sys_bytes',
+    'istio.mixer.go.memstats.mspan_inuse_bytes',
+    'istio.mixer.go.memstats.mspan_sys_bytes',
+    'istio.mixer.go.memstats.next_gc_bytes',
+    'istio.mixer.go.memstats.other_sys_bytes',
+    'istio.mixer.go.memstats.stack_inuse_bytes',
+    'istio.mixer.go.memstats.stack_sys_bytes',
+    'istio.mixer.go.memstats.sys_bytes',
+    'istio.mixer.go.threads',
+    'istio.mixer.grpc.server.handled_total',
+    'istio.mixer.grpc.server.handling_seconds.count',
+    'istio.mixer.grpc.server.handling_seconds.sum',
+    'istio.mixer.grpc.server.msg_received_total',
+    'istio.mixer.grpc.server.msg_sent_total',
+    'istio.mixer.grpc.server.started_total',
+    'istio.mixer.adapter.dispatch_count',
+    'istio.mixer.adapter.old_dispatch_count',
+    'istio.mixer.adapter.old_dispatch_duration.count',
+    'istio.mixer.adapter.old_dispatch_duration.sum',
+    'istio.mixer.config.resolve_actions.count',
+    'istio.mixer.config.resolve_actions.sum',
+    'istio.mixer.config.resolve_count',
+    'istio.mixer.config.resolve_duration.count',
+    'istio.mixer.config.resolve_duration.sum',
+    'istio.mixer.config.resolve_rules.count',
+    'istio.mixer.config.resolve_rules.sum',
+    'istio.mixer.process.cpu_seconds_total',
+    'istio.mixer.process.max_fds',
+    'istio.mixer.process.open_fds',
+    'istio.mixer.process.resident_memory_bytes',
+    'istio.mixer.process.start_time_seconds',
+    'istio.mixer.process.virtual_memory_bytes'
+]
 
 MESH_METRICS_MAPPER = {
     'istio_request_count': 'request.count',
@@ -149,10 +154,7 @@ class MockResponse:
     """
 
     def __init__(self, content, content_type, status=200):
-        if isinstance(content, list):
-            self.content = content
-        else:
-            self.content = [content]
+        self.content = content if isinstance(content, list) else [content]
         self.headers = {'Content-Type': content_type}
         self.status = status
 
@@ -162,7 +164,8 @@ class MockResponse:
             yield elt
 
     def raise_for_status(self):
-        return self.status == 200
+        if self.status != 200:
+            raise HTTPError('Not 200 Client Error')
 
     def close(self):
         pass
@@ -195,8 +198,8 @@ def test_istio(aggregator, mesh_mixture_fixture):
     """
     Test the full check
     """
-    c = Istio('istio', {}, {}, [MOCK_INSTANCE])
-    c.check(MOCK_INSTANCE)
+    check = Istio('istio', {}, {}, [MOCK_INSTANCE])
+    check.check(MOCK_INSTANCE)
 
     for metric in MESH_METRICS + MIXER_METRICS:
         aggregator.assert_metric(metric)
@@ -205,9 +208,9 @@ def test_istio(aggregator, mesh_mixture_fixture):
 
 
 def test_scraper_creator():
-    c = Istio('istio', {}, {}, [MOCK_INSTANCE])
-    istio_mesh_config = c.config_map.get(MOCK_INSTANCE['istio_mesh_endpoint'])
-    mixer_scraper_dict = c.config_map.get(MOCK_INSTANCE['mixer_endpoint'])
+    check = Istio('istio', {}, {}, [MOCK_INSTANCE])
+    istio_mesh_config = check.config_map.get(MOCK_INSTANCE['istio_mesh_endpoint'])
+    mixer_scraper_dict = check.config_map.get(MOCK_INSTANCE['mixer_endpoint'])
 
     assert istio_mesh_config['NAMESPACE'] == Istio.MESH_NAMESPACE
     assert mixer_scraper_dict['NAMESPACE'] == Istio.MIXER_NAMESPACE

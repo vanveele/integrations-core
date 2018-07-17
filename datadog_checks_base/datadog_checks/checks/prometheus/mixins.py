@@ -39,7 +39,6 @@ class PrometheusScraperMixin(object):
     REQUESTS_CHUNK_SIZE = 1024 * 10  # use 10kb as chunk size when using the Stream feature in requests.get
 
     def __init__(self, *args, **kwargs):
-
         # Initialize AgentCheck's base class
         super(PrometheusScraperMixin, self).__init__(*args, **kwargs)
 
@@ -496,27 +495,25 @@ class PrometheusScraperMixin(object):
         self._store_labels(message, scraper_config)
 
         if message.name in scraper_config['ignore_metrics']:
-            print("here0.5")
             return  # Ignore the metric
 
         # Filter metric to see if we can enrich with joined labels
         self._join_labels(message, scraper_config)
 
         if scraper_config['_dry_run']:
-            print("here0.9")
             return
 
         try:
             metric = scraper_config['metrics_mapper'][message.name]
             self._submit(metric, message, scraper_config)
         except KeyError:
+            print('error for', message.name)
             if metric_transformers is not None:
-                print("better not")
                 if message.name in metric_transformers:
                     try:
                         # Get the transformer function for this specific metric
                         transformer = metric_transformers[message.name]
-                        transformer(message)
+                        transformer(message, scraper_config)
                     except Exception as err:
                         self.log.warning("Error handling metric: {} - error: {}".format(message.name, err))
                 else:
@@ -550,7 +547,7 @@ class PrometheusScraperMixin(object):
         :return: requests.Response
         """
         endpoint = scraper_config.get('prometheus_url')
-        print("endpoint:", endpoint)
+
         # Should we send a service check for when we make a request
         health_service_check = scraper_config['health_service_check']
         service_check_name = '{}{}'.format(scraper_config['NAMESPACE'], '.prometheus.health')

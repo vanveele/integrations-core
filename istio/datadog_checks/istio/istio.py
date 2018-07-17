@@ -5,6 +5,7 @@
 from copy import deepcopy
 
 from datadog_checks.checks.prometheus import GenericPrometheusCheck
+from datadog_checks.errors import CheckException
 
 
 class Istio(GenericPrometheusCheck):
@@ -12,33 +13,30 @@ class Istio(GenericPrometheusCheck):
     MESH_NAMESPACE = 'istio.mesh'
 
     def __init__(self, name, init_config, agentConfig, instances=None):
+
         # Create instances we can use in GenericPrometheusCheck
-        generic_instances = self.create_generic_instances(instances)
+        generic_instances = None
+        if instances is not None:
+            generic_instances = self.create_generic_instances(instances)
 
         # Set up GenericPrometheusCheck with our generic instances
-        super(Istio, self).__init__(name, init_config, agentConfig, generic_instances)
+        super(Istio, self).__init__(name, init_config, agentConfig, instances=generic_instances)
 
     def check(self, instance):
         """
         Process both the istio_mesh instance and process_mixer instance associated with this instance
         """
-        istio_mesh_endpoint = instance.get('istio_mesh_endpoint')
-        process_mixer_endpoint = instance.get('mixer_endpoint')
 
         # Get the config for the istio_mesh instance
+        istio_mesh_endpoint = instance.get('istio_mesh_endpoint')
         istio_mesh_config = self.config_map.get(istio_mesh_endpoint)
-        if istio_mesh_config is None:
-            istio_mesh_instance = self._create_istio_mesh_instance(instance)
-            istio_mesh_config = self.get_scraper_config(istio_mesh_instance)
 
         # Process istio_mesh
         self.process(istio_mesh_config)
 
         # Get the config for the process_mixer instance
+        process_mixer_endpoint = instance.get('mixer_endpoint')
         process_mixer_config = self.config_map.get(process_mixer_endpoint)
-        if process_mixer_config is None:
-            process_mixer_instance = self._create_process_mixer_instance(instance)
-            process_mixer_config = self.get_scraper_config(process_mixer_instance)
 
         # Process process_mixer
         self.process(process_mixer_config)
@@ -64,6 +62,9 @@ class Istio(GenericPrometheusCheck):
         """
         endpoint = instance.get('istio_mesh_endpoint')
 
+        if endpoint is None:
+            raise CheckException("Unable to find istio_mesh_endpoint in config file.")
+
         istio_mesh_instance = deepcopy(instance)
         istio_mesh_instance.update({
             'namespace': self.MESH_NAMESPACE,
@@ -85,6 +86,8 @@ class Istio(GenericPrometheusCheck):
         otherwise create the scraper and add it to the dict
         """
         endpoint = instance.get('mixer_endpoint')
+        if endpoint is None:
+            raise CheckException("Unable to find mixer_endpoint in config file.")
 
         process_mixer_instance = deepcopy(instance)
         process_mixer_instance.update({
