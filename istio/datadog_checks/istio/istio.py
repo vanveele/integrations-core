@@ -80,7 +80,6 @@ class Istio(GenericPrometheusCheck):
         process_mixer_instance.update({
             'namespace': self.MIXER_NAMESPACE,
             'prometheus_url': endpoint,
-            'label_to_hostname': endpoint,
             'metrics': [{
                 'go_gc_duration_seconds': 'go.gc_duration_seconds',
                 'go_goroutines': 'go.goroutines',
