@@ -1,18 +1,40 @@
-# (C) Datadog, Inc. 2018
+# (C) Datadog, Inc. 2010-2017
 # All rights reserved
 # Licensed under Simplified BSD License (see LICENSE)
 
+# stdlib
 import os
-import pytest
 import mock
-from requests.exceptions import HTTPError
 
+import pytest
+
+# project
 from datadog_checks.kube_dns import KubeDNSCheck
 
 
 instance = {
     'prometheus_endpoint': 'http://localhost:10055/metrics',
 }
+
+
+class MockResponse:
+    """
+    MockResponse is used to simulate the object requests.Response commonly returned by requests.get
+    """
+
+    def __init__(self, content, content_type):
+        self.content = content
+        self.headers = {'Content-Type': content_type}
+
+    def iter_lines(self, **_):
+        for elt in self.content.split("\n"):
+            yield elt
+
+    def raise_for_status(self):
+        pass
+
+    def close(self):
+        pass
 
 
 @pytest.fixture
@@ -30,78 +52,41 @@ def mock_get():
     with open(mesh_file_path, 'rb') as f:
         text_data = f.read()
 
-    p = mock.patch('requests.get', return_value=MockResponse(text_data, 'text/plain; version=0.0.4'), __name__="get")
+    p = mock.patch('requests.get', return_value=MockResponse(text_data, 'text/plain; version=0.0.4'), __name__='get')
     yield p.start()
     p.stop()
 
 
-class MockResponse:
-    """
-    MockResponse is used to simulate the object requests.Response commonly returned by requests.get
-    """
+class TestKubeDNS:
+    """Basic Test for kube_dns integration."""
+    CHECK_NAME = 'kube_dns'
+    NAMESPACE = 'kubedns'
+    METRICS = [
+        NAMESPACE + '.response_size.bytes.count',
+        NAMESPACE + '.response_size.bytes.sum',
+        NAMESPACE + '.request_duration.seconds.count',
+        NAMESPACE + '.request_duration.seconds.sum',
+        NAMESPACE + '.request_count',
+        NAMESPACE + '.error_count',
+        NAMESPACE + '.cachemiss_count',
+    ]
+    COUNT_METRICS = [
+        NAMESPACE + '.request_count.count',
+        NAMESPACE + '.error_count.count',
+        NAMESPACE + '.cachemiss_count.count',
+    ]
 
-    def __init__(self, content, content_type, status=200):
-        self.content = content
-        self.headers = {'Content-Type': content_type}
-        self.status = status
+    def test_check(self, aggregator, mock_get):
+        """
+        Testing kube_dns check.
+        """
 
-    def iter_lines(self, **_):
-        for elt in self.content.split("\n"):
-            yield elt
+        check = KubeDNSCheck('kube_dns', {}, {}, [instance])
+        check.check(instance)
 
-    def raise_for_status(self):
-        if self.status != 200:
-            raise HTTPError('Not 200 Client Error')
+        # check that we then get the count metrics also
+        check.check(instance)
+        for metric in self.METRICS + self.COUNT_METRICS:
+            aggregator.assert_metric(metric)
 
-    def close(self):
-        pass
-
-
-"""Basic Test for kube_dns integration."""
-CHECK_NAME = 'kube_dns'
-NAMESPACE = 'kubedns'
-METRICS = [
-    NAMESPACE + '.response_size.bytes.count',
-    NAMESPACE + '.response_size.bytes.sum',
-    NAMESPACE + '.request_duration.seconds.count',
-    NAMESPACE + '.request_duration.seconds.sum',
-    NAMESPACE + '.request_count',
-    NAMESPACE + '.error_count',
-    NAMESPACE + '.cachemiss_count',
-]
-COUNT_METRICS = [
-    NAMESPACE + '.request_count.count',
-    NAMESPACE + '.error_count.count',
-    NAMESPACE + '.cachemiss_count.count',
-]
-
-
-def test_check(aggregator, mock_get):
-    """
-    Testing kube_dns check.
-    """
-    check = KubeDNSCheck('kube_dns', {}, {}, [instance])
-    check.check(instance)
-
-    print("first")
-    for m in aggregator._metrics.items():
-        print m
-
-    # check that we have gauge metrics, and NOT rate metrics (as we should then only have one point for them)
-    # (Can happen if some labels are not picked up as tags when reading up the prometheus output)
-    for metric in METRICS:
-        aggregator.assert_metric(metric)
-        print("asserted", metric)
-
-    aggregator.assert_all_metrics_covered()
-
-    aggregator.reset()
-
-    # check that we then get the count metrics also
-    check.check(instance)
-    print("second")
-    for m in aggregator._metrics.items():
-        print m
-    for metric in METRICS + COUNT_METRICS:
-        aggregator.assert_metric(metric)
-    aggregator.assert_all_metrics_covered()
+        aggregator.assert_all_metrics_covered()

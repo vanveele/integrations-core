@@ -507,7 +507,6 @@ class PrometheusScraperMixin(object):
             metric = scraper_config['metrics_mapper'][message.name]
             self._submit(metric, message, scraper_config)
         except KeyError:
-            print('error for', message.name)
             if metric_transformers is not None:
                 if message.name in metric_transformers:
                     try:
