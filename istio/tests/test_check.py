@@ -198,14 +198,8 @@ def test_istio(aggregator, mesh_mixture_fixture):
     c = Istio('istio', {}, {}, [MOCK_INSTANCE])
     c.check(MOCK_INSTANCE)
 
-    for m in aggregator._metrics.items():
-        print(m)
-
-    for metric in MESH_METRICS:
-        aggregator.assert_metric(metric, tags=[], count=1)
-
-    for metric in MIXER_METRICS:
-        aggregator.assert_metric(metric, tags=[], count=1)
+    for metric in MESH_METRICS + MIXER_METRICS:
+        aggregator.assert_metric(metric)
 
     aggregator.assert_all_metrics_covered()
 
